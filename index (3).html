@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gas Meter Reader</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 1rem;
+      text-align: center;
+      background: #000;
+      color: #fff;
+    }
+    canvas {
+      width: 100%;
+      max-width: 300px;
+      margin: 1rem auto;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <h1>📸 Gas Meter Reader</h1>
+  <input type="file" accept="image/*" id="upload" />
+  <canvas id="preview"></canvas>
+  <p id="output">Waiting for image...</p>
+
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.4/dist/tesseract.min.js"></script>
+  <script>
+    document.getElementById("upload").addEventListener("change", function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.getElementById("preview");
+          const ctx = canvas.getContext("2d");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+
+          Tesseract.recognize(canvas, 'eng').then(({ data: { text } }) => {
+            const result = lookupMeter(text);
+            document.getElementById("output").innerText = result;
+          });
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function lookupMeter(text) {
+      const meters = {
+        "175": "175 CFH - 7\" WC - Small Residential",
+        "250": "250 CFH - 2 PSI or 7\" WC - Standard Resi",
+        "400": "400 CFH - 2 PSI - Residential/Commercial",
+        "630": "630 CFH - 2 PSI - Commercial",
+        "800": "800 CFH - 2 PSI - Large Commercial",
+        "AL425": "425 CFH - Sensus - High-End Resi",
+        "AL800": "800 CFH - Sensus - Commercial",
+        "AC250": "250 CFH - American Meter - Resi"
+      };
+
+      text = text.toUpperCase();
+
+      for (let key in meters) {
+        if (text.includes(key)) return `✅ Meter Found: ${meters[key]}`;
+      }
+
+      if (text.includes("2 PSI") || text.includes("2PSI")) return "✅ Detected: 2 PSI pressure system";
+      if (text.includes("7\" WC") || text.includes("7 IN WC")) return "✅ Detected: 7\" WC (low pressure)";
+
+      return "⚠️ Meter data not recognized. Try a clearer image.";
+    }
+  </script>
+</body>
+</html>
